@@ -34,12 +34,15 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   await session.setSource(mediaStream);
   await session.play();
 
+  
   const lens = await cameraKit.lensRepository.loadLens(
-    '43296870875',
+    'baf0b5d1-7551-4c8b-b82d-d4144c752b37',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
 
+
+  
 
   ////// CAROUSELLLLLLLLLLLLLLLL//////
   // Load all lenses in the group
