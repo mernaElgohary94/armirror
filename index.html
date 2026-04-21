@@ -3,8 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
-    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
     <title>AR Mirror</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,124 +26,99 @@
         z-index: 0;
       }
 
-      /* Invisible video used as MediaPipe input — never shown */
+      /* Hidden video for MediaPipe */
       #input-video {
-        display: none;
-      }
-
-      /* Hand cursor dot — follows index fingertip */
-      #hand-cursor {
-      position: fixed;        /* ← was absolute, must be fixed */
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: rgba(255, 252, 0, 0.85);
-      border: 2px solid #fff;
-      pointer-events: none;
-      z-index: 99999;         /* ← very high so it's always on top */
-      transform: translate(-50%, -50%);
-      display: none;
-      transition: background 0.15s;
-      box-shadow: 0 0 10px rgba(255,252,0,0.6);
-    }
-      #hand-cursor.hovering {
-        background: rgba(255, 100, 0, 0.9);
-        box-shadow: 0 0 16px rgba(255,100,0,0.8);
-      }
-
-      /* Capture button — bottom center above carousel */
-      #overlay {
-        position: absolute;
-        bottom: 110px;
-        left: 0; right: 0;
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-      }
-
-      /* Outer ring shows hover progress */
-      #btn-wrapper {
-        position: relative;
-        width: 72px;
-        height: 72px;
-      }
-
-      /* SVG progress ring */
-      #progress-ring {
-        position: absolute;
-        top: -6px; left: -6px;
-        width: 84px;
-        height: 84px;
-        transform: rotate(-90deg);
+        position: fixed;
+        top: 0; left: 0;
+        width: 1px; height: 1px;
+        opacity: 0;
         pointer-events: none;
-        z-index: 11;
-      }
-      #progress-ring circle {
-        fill: none;
-        stroke: #ff6400;
-        stroke-width: 4;
-        stroke-linecap: round;
-        stroke-dasharray: 245;   /* circumference of r=39 circle */
-        stroke-dashoffset: 245;  /* starts empty */
-        transition: stroke-dashoffset 0.05s linear;
+        z-index: -1;
       }
 
-      #capture-btn {
-        width: 72px;
-        height: 72px;
-        min-width: 72px;
-        min-height: 72px;
-        max-width: 72px;
-        max-height: 72px;
-        border-radius: 16px;
-        background: #FFFC00;
-        border: 3px solid #fff;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        transition: transform 0.15s, background 0.15s;
-        padding: 0;
-        overflow: hidden;
-        position: relative;
-        z-index: 10;
-      }
-      #capture-btn.hovered {
-        background: #ffd000;
-        transform: scale(1.08);
-      }
-      #capture-btn:active { transform: scale(0.94); }
-      #capture-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-      #capture-btn svg {
-        width: 36px;
-        height: 36px;
-        flex-shrink: 0;
-        display: block;
-      }
+      /* Fingertip cursor dot */
+      /* #hand-cursor {
+        position: fixed;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(255, 252, 0, 0.85);
+        border: 2px solid #fff;
+        pointer-events: none;
+        z-index: 99999;
+        transform: translate(-50%, -50%);
+        display: none;
+        transition: background 0.15s;
+        box-shadow: 0 0 10px rgba(255,252,0,0.6);
+      } */
 
+      /* Status text */
       #status {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
         color: #fff;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 500;
         text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        z-index: 10;
         min-height: 16px;
         text-align: center;
+        pointer-events: none;
       }
 
-      /* QR Panel — bottom left, above carousel */
+      /* Victory sign "Hold..." indicator */
+      #victory-indicator {
+        display: none;
+        position: fixed;
+        top: 38%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 36px;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 0 20px rgba(0,0,0,0.9);
+        z-index: 9999;
+        pointer-events: none;
+        text-align: center;
+        transition: opacity 0.1s;
+      }
+
+      /* Big countdown number */
+      #thumbs-countdown {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 200px;
+        font-weight: 900;
+        color: #FFFC00;
+        text-shadow:
+          0 0 60px rgba(0,0,0,0.9),
+          0 0 120px rgba(255,252,0,0.5);
+        z-index: 9999;
+        pointer-events: none;
+        animation: pop 0.3s ease-out;
+      }
+
+      @keyframes pop {
+        0%   { transform: translate(-50%, -50%) scale(1.5); opacity: 0.3; }
+        100% { transform: translate(-50%, -50%) scale(1);   opacity: 1;   }
+      }
+
+      /* QR Panel — bottom left */
       #qr-panel {
-        position: absolute;
-        bottom: 110px;
+        position: fixed;
+        bottom: 30px;
         left: 20px;
         z-index: 10;
-        display: none ;
+        display: none;
         flex-direction: column;
         align-items: center;
       }
-      #qr-panel.visible { display: flex ; }
+      #qr-panel.visible { display: flex; }
 
       .qr-card {
         background: rgba(255,255,255,0.95);
@@ -182,17 +156,25 @@
     </style>
   </head>
   <body>
-
+ 
     <!-- AR output canvas -->
     <canvas id="canvas"></canvas>
 
-    <!-- Hidden video for MediaPipe hand detection -->
-    <video id="input-video" playsinline muted autoplay
-  style="position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; pointer-events:none; z-index:-1;">
-</video>
+    <!-- Hidden video for MediaPipe -->
+    <video id="input-video" playsinline muted autoplay></video>
 
     <!-- Fingertip cursor dot -->
     <div id="hand-cursor"></div>
+
+    <!-- Victory sign "Hold..." feedback -->
+    <div id="victory-indicator">✌️ Hold...</div>
+        <!-- Debug overlay — remove after fixing -->
+
+    <!-- Big countdown number -->
+    <div id="thumbs-countdown"></div>
+
+    <!-- Status text -->
+    <p id="status"></p>
 
     <!-- QR Panel — bottom left -->
     <div id="qr-panel">
@@ -203,74 +185,6 @@
         </div>
         <p class="qr-countdown" id="countdown"></p>
       </div>
-    </div>
-
-    <!-- Capture button — bottom center -->
-    <div id="overlay">
-
-      
-      <!-- Lens Carousel — add this ABOVE the btn-wrapper div -->
-    <!-- <div id="carousel-wrapper" style="
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      width: 100vw;
-      padding: 0 12px;
-      margin-bottom: 10px;
-    ">
-      <button id="arrow-left" style="
-        background: rgba(255,255,255,0.1);
-        border: none;
-        border-radius: 50%;
-        width: 36px; height: 36px;
-        color: #fff;
-        font-size: 20px;
-        cursor: pointer;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">‹</button>
-
-      <div id="carousel" style="
-        display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        scroll-behavior: smooth;
-        scrollbar-width: none;
-        flex: 1;
-        padding: 4px 0;
-      "></div>
-
-      <button id="arrow-right" style="
-        background: rgba(255,255,255,0.1);
-        border: none;
-        border-radius: 50%;
-        width: 36px; height: 36px;
-        color: #fff;
-        font-size: 20px;
-        cursor: pointer;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">›</button>
-      </div> -->
-      <div id="btn-wrapper">
-        <!-- Progress ring SVG -->
-        <svg id="progress-ring" viewBox="0 0 84 84">
-          <circle cx="42" cy="42" r="39" />
-        </svg>
-        <button id="capture-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#000">
-            <path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4z"/>
-            <path d="M9 2L7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0
-                     2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10
-                     5 5 0 0 1 0 10z"/>
-          </svg>
-        </button>
-      </div>
-      <p id="status"></p>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

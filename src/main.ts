@@ -6,18 +6,6 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 // Posted by user1693593, modified by community. See post 'Timeline' for change history
 // Retrieved 2026-03-10, License - CC BY-SA 3.0
 
-// import {
- 
-//   CameraKitSession,
-//   createMediaStreamSource,
-//   Transform2D,
-//   type Lens,
-// } from '@snap/camera-kit';
-
- 
-
-
-// ─── Imports — must all be at the top ────────────────────────────────────────
 
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -47,7 +35,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   await session.play();
 
   const lens = await cameraKit.lensRepository.loadLens(
-    '156e89e1-541b-4fd0-9b87-648c063ab2f6',
+    '43296870875',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
@@ -117,207 +105,293 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 // arrowLeft.addEventListener('click',  () => carousel.scrollBy({ left: -160, behavior: 'smooth' }));
 // arrowRight.addEventListener('click', () => carousel.scrollBy({ left:  160, behavior: 'smooth' }));
 ////// END OF CAROUSELLL /////////
-  // ── Resize canvas to fill portrait screen ──────────────────────────────────
+  // ── Resize canvas ─────────────────────────────────────────────────────────
   function resizeCanvas() {
-    const screenW     = window.innerWidth;
-    const screenH     = window.innerHeight;
-    const targetRatio = 9 / 16;
-    const screenRatio = screenW / screenH;
-
-    if (screenRatio > targetRatio) {
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const ratio   = 9 / 16;
+    if (screenW / screenH > ratio) {
       liveRenderTarget.style.height = '100vh';
-      liveRenderTarget.style.width  = `${screenH * targetRatio}px`;
-      liveRenderTarget.style.left   = `${(screenW - screenH * targetRatio) / 2}px`;
+      liveRenderTarget.style.width  = `${screenH * ratio}px`;
+      liveRenderTarget.style.left   = `${(screenW - screenH * ratio) / 2}px`;
     } else {
       liveRenderTarget.style.width  = '100vw';
-      liveRenderTarget.style.height = `${screenW / targetRatio}px`;
+      liveRenderTarget.style.height = `${screenW / ratio}px`;
       liveRenderTarget.style.top    = '0';
       liveRenderTarget.style.left   = '0';
     }
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
-
-  // ── UI elements ────────────────────────────────────────────────────────────
-  const captureBtn  = document.getElementById('capture-btn') as HTMLButtonElement;
-  const status      = document.getElementById('status')      as HTMLElement;
-  const qrPanel     = document.getElementById('qr-panel')    as HTMLElement;
-  const qrCanvas    = document.getElementById('qr-canvas')   as HTMLCanvasElement;
-  const countdown   = document.getElementById('countdown')   as HTMLElement;
-
-  // ── Auto-close QR panel ────────────────────────────────────────────────────
+ 
+  // ── UI elements ───────────────────────────────────────────────────────────
+  const status           = document.getElementById('status')            as HTMLElement;
+  const qrPanel          = document.getElementById('qr-panel')          as HTMLElement;
+  const qrCanvas         = document.getElementById('qr-canvas')         as HTMLCanvasElement;
+  const countdown        = document.getElementById('countdown')         as HTMLElement;
+  const handCursor       = document.getElementById('hand-cursor')       as HTMLElement;
+  const victoryIndicator = document.getElementById('victory-indicator') as HTMLElement;
+  const thumbsCountdown  = document.getElementById('thumbs-countdown')  as HTMLElement;
+  const debugOverlay     = document.getElementById('debug-overlay')     as HTMLElement;
+ 
+  // ── Auto-close QR ─────────────────────────────────────────────────────────
   let autoCloseTimer:    ReturnType<typeof setTimeout>;
   let countdownInterval: ReturnType<typeof setInterval>;
-
+ 
   function startAutoClose() {
     clearTimeout(autoCloseTimer);
     clearInterval(countdownInterval);
-
     let secondsLeft = 30;
     countdown.textContent = `Closing in ${secondsLeft}s`;
-
     countdownInterval = setInterval(() => {
       secondsLeft--;
       countdown.textContent = `Closing in ${secondsLeft}s`;
       if (secondsLeft <= 0) clearInterval(countdownInterval);
     }, 1000);
-
     autoCloseTimer = setTimeout(() => {
       qrPanel.classList.remove('visible');
       clearInterval(countdownInterval);
     }, 30_000);
   }
-
-  // ── Capture logic ──────────────────────────────────────────────────────────
-  // FIX: separate isCapturing flag so hand detection can't re-trigger
-  // while a capture is already in progress
+ 
+  // ── Capture ───────────────────────────────────────────────────────────────
   let isCapturing = false;
-
+ 
   async function doCapture() {
-    if (isCapturing) return;   // ← prevents hand detection double-trigger
+    if (isCapturing) return;
     isCapturing = true;
-    captureBtn.disabled = true;
-    status.textContent = '⏳ Uploading your photo...';
-
+    status.textContent = '⏳ Uploading...';
     try {
       const imageBase64 = await captureFrame(liveRenderTarget);
       const publicUrl   = await uploadToImgBB(imageBase64);
-
-      // FIX: width was 20 — far too small. 120 matches the CSS wrapper size.
-      await QRCode.toCanvas(qrCanvas, publicUrl, {
-        width: 120,
-        margin: 1,
-        errorCorrectionLevel: 'Q',
-      });
+      await QRCode.toCanvas(qrCanvas, publicUrl, { width: 120, margin: 1, errorCorrectionLevel: 'Q' });
       qrCanvas.style.width  = '120px';
       qrCanvas.style.height = '120px';
-
       qrPanel.classList.add('visible');
       status.textContent = '';
       startAutoClose();
     } catch (err) {
       console.error(err);
-      status.textContent = '❌ Upload failed. Please try again.';
+      status.textContent = '❌ Upload failed.';
     } finally {
-      captureBtn.disabled = false;
       isCapturing = false;
     }
   }
-
-  // Keep normal click working too
-  captureBtn.addEventListener('click', doCapture);
-
-  // ── Hand Detection ─────────────────────────────────────────────────────────
+ 
+  // ── Victory countdown ─────────────────────────────────────────────────────
+  let countdownActive   = false;
+  let victoryStartTime: number | null = null;
+  const VICTORY_HOLD_MS = 1000;
+ 
+  function startCountdownCapture() {
+    if (countdownActive || isCapturing) return;
+    countdownActive = true;
+    victoryIndicator.style.display = 'none';
+ 
+    let secondsLeft = 3;
+    thumbsCountdown.style.display = 'block';
+    thumbsCountdown.textContent   = String(secondsLeft);
+ 
+    const tick = setInterval(() => {
+      secondsLeft--;
+      thumbsCountdown.style.animation = 'none';
+      thumbsCountdown.offsetHeight;
+      thumbsCountdown.style.animation = 'pop 0.3s ease-out';
+ 
+      if (secondsLeft > 0) {
+        thumbsCountdown.textContent = String(secondsLeft);
+      } else {
+        clearInterval(tick);
+        thumbsCountdown.textContent = '📸';
+        setTimeout(() => {
+          thumbsCountdown.style.display = 'none';
+          countdownActive = false;
+          doCapture();
+        }, 400);
+      }
+    }, 1000);
+  }
+ 
+  // ── Hand Detection setup ──────────────────────────────────────────────────
   const inputVideo = document.getElementById('input-video') as HTMLVideoElement;
   inputVideo.srcObject = mediaStream;
-  // Wait for video to actually have frame data and be playing
-await new Promise<void>(resolve => {
-  const check = () => {
-    if (inputVideo.readyState >= 2 && inputVideo.currentTime > 0) {
-      console.log('✅ inputVideo has live frames');
-      resolve();
-    } else {
-      setTimeout(check, 100);
-    }
-  };
-  inputVideo.play().then(check).catch(e => console.error('video play failed:', e));
-});
-
-  const vision = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-  );
-
-  const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'VIDEO',
-    numHands: 2,
-    minHandDetectionConfidence: 0.6,
-    minHandPresenceConfidence:  0.6,
-    minTrackingConfidence:      0.5,
+ 
+  try {
+    await inputVideo.play();
+    console.log('✅ inputVideo playing');
+  } catch (e) {
+    console.error('❌ inputVideo play failed:', e);
+    return;
+  }
+ 
+  await new Promise<void>(resolve => {
+    const check = () => {
+      if (inputVideo.readyState >= 2 && inputVideo.currentTime > 0) {
+        console.log('✅ inputVideo has frames');
+        resolve();
+      } else {
+        setTimeout(check, 100);
+      }
+    };
+    check();
   });
-
-  const handCursor   = document.getElementById('hand-cursor')           as HTMLElement;
-  const progressRing = document.querySelector('#progress-ring circle')  as SVGCircleElement;
-
-  const RING_CIRC        = 245;
-  const HOVER_TRIGGER_MS = 1500;
-
-  let hoverStartTime: number | null = null;
+ 
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+  );
+ 
+  let handLandmarker: HandLandmarker;
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate: 'GPU',
+      },
+      runningMode: 'VIDEO',
+      numHands: 2,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence:  0.5,
+      minTrackingConfidence:      0.5,
+    });
+    console.log('✅ HandLandmarker GPU');
+  } catch {
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate: 'CPU',
+      },
+      runningMode: 'VIDEO',
+      numHands: 2,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence:  0.5,
+      minTrackingConfidence:      0.5,
+    });
+    console.log('✅ HandLandmarker CPU');
+  }
+ 
+  // ── Victory sign detector — RELAXED thresholds ───────────────────────────
+  function isVictorySign(landmarks: any[]): boolean {
+    const indexTip  = landmarks[8];
+    const indexMcp  = landmarks[5];
+    const middleTip = landmarks[12];
+    const middleMcp = landmarks[9];
+    const ringTip   = landmarks[16];
+    const ringPip   = landmarks[14];
+    const pinkyTip  = landmarks[20];
+    const pinkyPip  = landmarks[18];
+    // const thumbTip  = landmarks[4];
+    // const thumbIp   = landmarks[3];
+ 
+    // Extended: tip is higher (lower Y value) than mcp
+    // Relaxed threshold from 0.08 → 0.04 to be more forgiving
+    const indexUp     = indexTip.y  < indexMcp.y  - 0.04;
+    const middleUp    = middleTip.y < middleMcp.y - 0.04;
+ 
+    // Curled: tip is lower (higher Y value) than pip
+    const ringCurled  = ringTip.y  > ringPip.y  - 0.02;
+    const pinkyCurled = pinkyTip.y > pinkyPip.y - 0.02;
+    // const thumbCurled = thumbTip.y > thumbIp.y  - 0.02;
+ const thumbCurled = true;
+    return indexUp && middleUp && ringCurled && pinkyCurled && thumbCurled;
+  }
+ 
+  // ── Detection loop ────────────────────────────────────────────────────────
   let lastVideoTime = -1;
-
-  function isInsideButton(x: number, y: number): boolean {
-    const b = captureBtn.getBoundingClientRect();
-    return x >= b.left - 20 && x <= b.right  + 20 &&
-           y >= b.top  - 20 && y <= b.bottom + 20;
-  }
-
-  function setRingProgress(progress: number) {
-    progressRing.style.strokeDashoffset = String(RING_CIRC * (1 - progress));
-  }
-
+ 
   function detectHands() {
     if (inputVideo.readyState < 2) { requestAnimationFrame(detectHands); return; }
     if (inputVideo.currentTime === lastVideoTime) { requestAnimationFrame(detectHands); return; }
     lastVideoTime = inputVideo.currentTime;
-
+ 
     const now     = performance.now();
     const results = handLandmarker.detectForVideo(inputVideo, now);
-
+ 
     if (results.landmarks?.length > 0) {
-      const tip = results.landmarks[0][8]; // index fingertip
-
-      // Flip X because the webcam feed is mirrored
+      const landmarks = results.landmarks[0];
+      const tip = landmarks[8];
+ 
       const sx = (1 - tip.x) * window.innerWidth;
       const sy = tip.y * window.innerHeight;
-
+ 
       handCursor.style.display = 'block';
       handCursor.style.left    = `${sx}px`;
       handCursor.style.top     = `${sy}px`;
-
-      if (isInsideButton(sx, sy) && !isCapturing) {
-        captureBtn.classList.add('hovered');
-        handCursor.style.background = 'rgba(255,100,0,0.9)';
-
-        if (hoverStartTime === null) hoverStartTime = now;
-
-        const progress = Math.min((now - hoverStartTime) / HOVER_TRIGGER_MS, 1);
-        setRingProgress(progress);
-
-        if (progress >= 1) {
-          hoverStartTime = null;
-          setRingProgress(0);
-          doCapture(); // FIX: call doCapture() directly, not captureBtn.click()
+ 
+      // ── DEBUG: show live values on screen ─────────────────────────────
+  //     const indexTip  = landmarks[8];
+  //     const indexMcp  = landmarks[5];
+  //     const middleTip = landmarks[12];
+  //     const middleMcp = landmarks[9];
+  //     const ringTip   = landmarks[16];
+  //     const ringPip   = landmarks[14];
+  //     const pinkyTip  = landmarks[20];
+  //     const pinkyPip  = landmarks[18];
+  //     // const thumbTip  = landmarks[4];
+  //     // const thumbIp   = landmarks[3];
+ 
+  //     const indexUp     = indexTip.y  < indexMcp.y  - 0.04;
+  //     const middleUp    = middleTip.y < middleMcp.y - 0.04;
+  //     const ringCurled  = ringTip.y   > ringPip.y   - 0.02;
+  //     const pinkyCurled = pinkyTip.y  > pinkyPip.y  - 0.02;
+  //    // const thumbCurled = thumbTip.y  > thumbIp.y   - 0.02;
+  //    // const victory     = indexUp && middleUp && ringCurled && pinkyCurled && thumbCurled;
+  // const victory     = indexUp && middleUp && ringCurled && pinkyCurled;
+  //     debugOverlay.innerHTML = `
+  //       <b style="color:${victory ? '#0f0' : '#ff0'}">
+  //         ${victory ? '✌️ VICTORY DETECTED' : '👁 Watching...'}
+  //       </b><br>
+  //       index up: <b style="color:${indexUp ? '#0f0' : '#f00'}">${indexUp}</b>
+  //       (tip.y ${indexTip.y.toFixed(3)} vs mcp.y ${indexMcp.y.toFixed(3)})<br>
+  //       middle up: <b style="color:${middleUp ? '#0f0' : '#f00'}">${middleUp}</b>
+  //       (tip.y ${middleTip.y.toFixed(3)} vs mcp.y ${middleMcp.y.toFixed(3)})<br>
+  //       ring curled: <b style="color:${ringCurled ? '#0f0' : '#f00'}">${ringCurled}</b>
+  //       (tip.y ${ringTip.y.toFixed(3)} vs pip.y ${ringPip.y.toFixed(3)})<br>
+  //       pinky curled: <b style="color:${pinkyCurled ? '#0f0' : '#f00'}">${pinkyCurled}</b>
+  //       (tip.y ${pinkyTip.y.toFixed(3)} vs pip.y ${pinkyPip.y.toFixed(3)})<br>
+  //   `;
+ 
+      // ── Victory sign trigger ───────────────────────────────────────────
+      if (isVictorySign(landmarks) && !isCapturing && !countdownActive) {
+        if (victoryStartTime === null) victoryStartTime = now;
+        const held     = now - victoryStartTime;
+        const progress = Math.min(held / VICTORY_HOLD_MS, 1);
+        victoryIndicator.style.display = 'block';
+        victoryIndicator.style.opacity = String(0.4 + progress * 0.6);
+        victoryIndicator.textContent   = '✌️ Hold...';
+        if (held >= VICTORY_HOLD_MS) {
+          victoryStartTime = null;
+          victoryIndicator.style.display = 'none';
+          startCountdownCapture();
         }
-      } else {
-        captureBtn.classList.remove('hovered');
-        handCursor.style.background = 'rgba(255,252,0,0.85)';
-        hoverStartTime = null;
-        setRingProgress(0);
+      } else if (!countdownActive) {
+        victoryStartTime = null;
+        victoryIndicator.style.display = 'none';
       }
+ 
     } else {
-      handCursor.style.display = 'none';
-      captureBtn.classList.remove('hovered');
-      hoverStartTime = null;
-      setRingProgress(0);
+      handCursor.style.display       = 'none';
+      // debugOverlay.textContent       = '🤚 No hand detected';
+      // debugOverlay.style.color       = '#aaa';
+      if (!countdownActive) {
+        victoryStartTime               = null;
+        victoryIndicator.style.display = 'none';
+      }
     }
-
+ 
     requestAnimationFrame(detectHands);
   }
-
+ 
+  console.log('🚀 Starting hand detection...');
   detectHands();
-
+ 
 })();
-
+ 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function captureFrame(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (!blob) return reject(new Error('Canvas capture failed'));
+        if (!blob) return reject(new Error('Capture failed'));
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
         reader.onerror   = reject;
@@ -328,11 +402,11 @@ function captureFrame(canvas: HTMLCanvasElement): Promise<string> {
     );
   });
 }
-
+ 
 async function uploadToImgBB(base64: string): Promise<string> {
   const formData = new FormData();
   formData.append('image', base64);
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=6a5e9536c4c93264e11babc427c340fd`, {
+  const res = await fetch('https://api.imgbb.com/1/upload?key=6a5e9536c4c93264e11babc427c340fd', {
     method: 'POST',
     body: formData,
   });
@@ -340,8 +414,7 @@ async function uploadToImgBB(base64: string): Promise<string> {
   const json = await res.json();
   return json.data.url;
 }
-
-
+ 
 
 //////CAROUSELLLLLLLLLLLLLLLLLLLLLL ///////
 // let mediaStream: MediaStream;
