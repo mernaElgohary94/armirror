@@ -184,7 +184,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   // ── Victory countdown ─────────────────────────────────────────────────────
   let countdownActive   = false;
   let victoryStartTime: number | null = null;
-  const VICTORY_HOLD_MS = 1000;
+  const VICTORY_HOLD_MS = 2000;
  
   function startCountdownCapture() {
     if (countdownActive || isCapturing) return;
