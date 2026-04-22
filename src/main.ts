@@ -36,7 +36,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
   
   const lens = await cameraKit.lensRepository.loadLens(
-    'baf0b5d1-7551-4c8b-b82d-d4144c752b37',
+    'f48ab852-ba11-4a0a-af12-b64a4701a00a',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
@@ -135,7 +135,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   const handCursor       = document.getElementById('hand-cursor')       as HTMLElement;
   const victoryIndicator = document.getElementById('victory-indicator') as HTMLElement;
   const thumbsCountdown  = document.getElementById('thumbs-countdown')  as HTMLElement;
-  const debugOverlay     = document.getElementById('debug-overlay')     as HTMLElement;
+//  const debugOverlay     = document.getElementById('debug-overlay')     as HTMLElement;
  
   // ── Auto-close QR ─────────────────────────────────────────────────────────
   let autoCloseTimer:    ReturnType<typeof setTimeout>;
