@@ -36,7 +36,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
   
   const lens = await cameraKit.lensRepository.loadLens(
-    'f48ab852-ba11-4a0a-af12-b64a4701a00a',
+    '55f15d03-b87d-40ed-a5b5-53b893b41eb6',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
@@ -160,26 +160,58 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   // ── Capture ───────────────────────────────────────────────────────────────
   let isCapturing = false;
  
+  // async function doCapture() {
+  //   if (isCapturing) return;
+  //   isCapturing = true;
+  //   status.textContent = '⏳ Uploading...';
+  //   try {
+  //     const imageBase64 = await captureFrame(liveRenderTarget);
+  //     const publicUrl   = await uploadToImgBB(imageBase64);
+  //     await QRCode.toCanvas(qrCanvas, publicUrl, { width: 200, margin: 2, errorCorrectionLevel: 'Q' });
+  //     qrCanvas.style.width  = '580px';
+  //     qrCanvas.style.height = '580px';
+  //     qrPanel.classList.add('visible');
+  //     status.textContent = '';
+  //     startAutoClose();
+  //   } catch (err) {
+  //     console.error(err);
+  //     status.textContent = '❌ Upload failed.';
+  //   } finally {
+  //     isCapturing = false;
+  //   }
+  // }
   async function doCapture() {
-    if (isCapturing) return;
-    isCapturing = true;
-    status.textContent = '⏳ Uploading...';
+  if (isCapturing) return;
+  isCapturing = true;
+  status.textContent = '⏳ Processing...';
+
+  try {
+    const imageBase64 = await captureFrame(liveRenderTarget);
+
+    // Try Cloudinary first, fall back to ImgBB
+    let publicUrl: string;
     try {
-      const imageBase64 = await captureFrame(liveRenderTarget);
-      const publicUrl   = await uploadToImgBB(imageBase64);
-      await QRCode.toCanvas(qrCanvas, publicUrl, { width: 120, margin: 1, errorCorrectionLevel: 'Q' });
-      qrCanvas.style.width  = '120px';
-      qrCanvas.style.height = '120px';
-      qrPanel.classList.add('visible');
-      status.textContent = '';
-      startAutoClose();
-    } catch (err) {
-      console.error(err);
-      status.textContent = '❌ Upload failed.';
-    } finally {
-      isCapturing = false;
+      publicUrl = await uploadToCloudinary(imageBase64);
+    } catch {
+      console.warn('Cloudinary failed, trying ImgBB...');
+      publicUrl = await uploadToImgBB(imageBase64);
     }
+
+    await QRCode.toCanvas(qrCanvas, publicUrl, {
+      width: 280, margin: 2, errorCorrectionLevel: 'Q'
+    });
+    qrCanvas.style.width  = '280px';
+    qrCanvas.style.height = '280px';
+    qrPanel.classList.add('visible');
+    status.textContent = '';
+    startAutoClose();
+  } catch (err) {
+    console.error(err);
+    status.textContent = '❌ Upload failed. Please try again.';
+  } finally {
+    isCapturing = false;
   }
+}
  
   // ── Victory countdown ─────────────────────────────────────────────────────
   let countdownActive   = false;
@@ -248,15 +280,15 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-        delegate: 'GPU',
+        delegate: 'CPU',
       },
       runningMode: 'VIDEO',
-      numHands: 2,
+      numHands: 1,
       minHandDetectionConfidence: 0.5,
       minHandPresenceConfidence:  0.5,
       minTrackingConfidence:      0.5,
     });
-    console.log('✅ HandLandmarker GPU');
+    console.log('✅ HandLandmarker CPU');
   } catch {
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
@@ -300,14 +332,21 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
  
   // ── Detection loop ────────────────────────────────────────────────────────
   let lastVideoTime = -1;
- 
+ let lastDetectionTime = 0;
+const DETECTION_INTERVAL_MS = 66; // ~15fps instead of 60fps
+
   function detectHands() {
-    if (inputVideo.readyState < 2) { requestAnimationFrame(detectHands); return; }
-    if (inputVideo.currentTime === lastVideoTime) { requestAnimationFrame(detectHands); return; }
-    lastVideoTime = inputVideo.currentTime;
+    // if (inputVideo.readyState < 2) { requestAnimationFrame(detectHands); return; }
+    // if (inputVideo.currentTime === lastVideoTime) { requestAnimationFrame(detectHands); return; }
+    // lastVideoTime = inputVideo.currentTime;
  
     const now     = performance.now();
-    const results = handLandmarker.detectForVideo(inputVideo, now);
+    if (now - lastDetectionTime >= DETECTION_INTERVAL_MS) {
+    if (inputVideo.readyState >= 2 && inputVideo.currentTime !== lastVideoTime) {
+      lastVideoTime = inputVideo.currentTime;
+      lastDetectionTime = now;
+        const results = handLandmarker.detectForVideo(inputVideo, now);
+    //const results = handLandmarker.detectForVideo(inputVideo, now);
  
     if (results.landmarks?.length > 0) {
       const landmarks = results.landmarks[0];
@@ -380,7 +419,8 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
         victoryIndicator.style.display = 'none';
       }
     }
- 
+   }
+  }
     requestAnimationFrame(detectHands);
   }
  
@@ -405,7 +445,21 @@ function captureFrame(canvas: HTMLCanvasElement): Promise<string> {
     );
   });
 }
- 
+ async function uploadToCloudinary(base64: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', `data:image/jpeg;base64,${base64}`);
+  formData.append('upload_preset', 'AR_Mirror'); // set in Cloudinary dashboard
+  formData.append('folder', 'ar-mirror');
+
+  const res = await fetch('https://api.cloudinary.com/v1_1/dfv2yqbaz/image/upload', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Cloudinary error: ${res.status}`);
+  const json = await res.json();
+  return json.secure_url;
+}
+
 async function uploadToImgBB(base64: string): Promise<string> {
   const formData = new FormData();
   formData.append('image', base64);
