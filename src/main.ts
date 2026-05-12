@@ -12,7 +12,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 (async function () {
 
   const cameraKit = await bootstrapCameraKit({
-    apiToken: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkNhbnZhc1MyU0hNQUNQcm9kIiwidHlwIjoiSldUIn0.eyJhdWQiOiJjYW52YXMtY2FudmFzYXBpIiwiaXNzIjoiY2FudmFzLXMyc3Rva2VuIiwibmJmIjoxNzczMTUwNzIzLCJzdWIiOiIyNmFhNmQwNi1kODNlLTRmMDEtOTRkMy1lYzE5NjYwMTdjYjV-U1RBR0lOR342NGU4NDc5Yy1iNDA2LTRiNzEtOWQ0Zi0zYmU2OTIyMmQzOWUifQ.NPvAHAl-kW3OP42J5dAIkw0_nLL2B6WjTmcCHt-iOTY'
+    apiToken: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkNhbnZhc1MyU0hNQUNQcm9kIiwidHlwIjoiSldUIn0.eyJhdWQiOiJjYW52YXMtY2FudmFzYXBpIiwiaXNzIjoiY2FudmFzLXMyc3Rva2VuIiwibmJmIjoxNzczMTUwNzIzLCJzdWIiOiIyNmFhNmQwNi1kODNlLTRmMDEtOTRkMy1lYzE5NjYwMTdjYjV-UFJPRFVDVElPTn44M2NjZTM4Ni1lNzUxLTQ0NWMtOGUxZS0wYzVhNGU4OTVjYzMifQ.A_wGl3ttojz7fK7OeISjh3fty4XP4XthK5waIvHBbsQ'
   });
 
   const liveRenderTarget = document.getElementById('canvas') as HTMLCanvasElement;
