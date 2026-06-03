@@ -36,7 +36,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
   
   const lens = await cameraKit.lensRepository.loadLens(
-    '55f15d03-b87d-40ed-a5b5-53b893b41eb6',
+    'd2d79fd9-b6ce-430b-969c-efe24217a15f',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
@@ -216,7 +216,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   // ── Victory countdown ─────────────────────────────────────────────────────
   let countdownActive   = false;
   let victoryStartTime: number | null = null;
-  const VICTORY_HOLD_MS = 2000;
+  const VICTORY_HOLD_MS = 1000;
  
   function startCountdownCapture() {
     if (countdownActive || isCapturing) return;
@@ -280,7 +280,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-        delegate: 'CPU',
+        delegate: 'GPU',
       },
       runningMode: 'VIDEO',
       numHands: 1,
@@ -288,12 +288,12 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
       minHandPresenceConfidence:  0.5,
       minTrackingConfidence:      0.5,
     });
-    console.log('✅ HandLandmarker CPU');
+    console.log('✅ HandLandmarker GPU');
   } catch {
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-        delegate: 'CPU',
+        delegate: 'GPU',
       },
       runningMode: 'VIDEO',
       numHands: 2,
@@ -305,35 +305,69 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
   }
  
   // ── Victory sign detector — RELAXED thresholds ───────────────────────────
-  function isVictorySign(landmarks: any[]): boolean {
-    const indexTip  = landmarks[8];
-    const indexMcp  = landmarks[5];
-    const middleTip = landmarks[12];
-    const middleMcp = landmarks[9];
-    const ringTip   = landmarks[16];
-    const ringPip   = landmarks[14];
-    const pinkyTip  = landmarks[20];
-    const pinkyPip  = landmarks[18];
-    // const thumbTip  = landmarks[4];
-    // const thumbIp   = landmarks[3];
+//   function isVictorySign(landmarks: any[]): boolean {
+//     const indexTip  = landmarks[8];
+//     const indexMcp  = landmarks[5];
+//     const middleTip = landmarks[12];
+//     const middleMcp = landmarks[9];
+//     const ringTip   = landmarks[16];
+//     const ringPip   = landmarks[14];
+//     const pinkyTip  = landmarks[20];
+//     const pinkyPip  = landmarks[18];
+//     // const thumbTip  = landmarks[4];
+//     // const thumbIp   = landmarks[3];
  
-    // Extended: tip is higher (lower Y value) than mcp
-    // Relaxed threshold from 0.08 → 0.04 to be more forgiving
-    const indexUp     = indexTip.y  < indexMcp.y  - 0.04;
-    const middleUp    = middleTip.y < middleMcp.y - 0.04;
+//     // Extended: tip is higher (lower Y value) than mcp
+//     // Relaxed threshold from 0.08 → 0.04 to be more forgiving
+//     const indexUp     = indexTip.y  < indexMcp.y  - 0.04;
+//     const middleUp    = middleTip.y < middleMcp.y - 0.04;
  
-    // Curled: tip is lower (higher Y value) than pip
-    const ringCurled  = ringTip.y  > ringPip.y  - 0.02;
-    const pinkyCurled = pinkyTip.y > pinkyPip.y - 0.02;
-    // const thumbCurled = thumbTip.y > thumbIp.y  - 0.02;
- const thumbCurled = true;
-    return indexUp && middleUp && ringCurled && pinkyCurled && thumbCurled;
-  }
- 
+//     // Curled: tip is lower (higher Y value) than pip
+//     const ringCurled  = ringTip.y  > ringPip.y  - 0.02;
+//     const pinkyCurled = pinkyTip.y > pinkyPip.y - 0.02;
+//     // const thumbCurled = thumbTip.y > thumbIp.y  - 0.02;
+//  const thumbCurled = true;
+//     return indexUp && middleUp && ringCurled && pinkyCurled && thumbCurled;
+//   }
+ function isVictorySign(landmarks: any[]): boolean {
+  const indexTip   = landmarks[8];
+  const indexPip   = landmarks[6];  // added — more reliable than mcp
+  const indexMcp   = landmarks[5];
+  const middleTip  = landmarks[12];
+  const middlePip  = landmarks[10]; // added
+  const middleMcp  = landmarks[9];
+  const ringTip    = landmarks[16];
+  const ringPip    = landmarks[14];
+  const ringMcp    = landmarks[13]; // added
+  const pinkyTip   = landmarks[20];
+  const pinkyPip   = landmarks[18];
+  const pinkyMcp   = landmarks[17]; // added
+
+  // ── Extended fingers — use TWO checks instead of one ──────────────
+  // Check 1: tip above mcp (original)
+  // Check 2: tip above pip (extra confirmation)
+  // Both must pass — reduces false positives
+  const indexUp  = indexTip.y  < indexMcp.y  - 0.04 &&
+                   indexTip.y  < indexPip.y;
+
+  const middleUp = middleTip.y < middleMcp.y - 0.04 &&
+                   middleTip.y < middlePip.y;
+
+  // ── Curled fingers — tip must be clearly below mcp, not just pip ──
+  // Using mcp instead of pip makes curl detection more reliable
+  const ringCurled  = ringTip.y  > ringMcp.y  - 0.01;
+  const pinkyCurled = pinkyTip.y > pinkyMcp.y - 0.01;
+
+  // ── Spread check — index and middle must be spread apart ──────────
+  // This prevents a flat open hand from triggering
+  const fingersSpread = Math.abs(indexTip.x - middleTip.x) > 0.04;
+
+  return indexUp && middleUp && ringCurled && pinkyCurled && fingersSpread;
+}
   // ── Detection loop ────────────────────────────────────────────────────────
   let lastVideoTime = -1;
  let lastDetectionTime = 0;
-const DETECTION_INTERVAL_MS = 66; // ~15fps instead of 60fps
+const DETECTION_INTERVAL_MS = 50; // ~15fps instead of 60fps
 
   function detectHands() {
     // if (inputVideo.readyState < 2) { requestAnimationFrame(detectHands); return; }
@@ -409,7 +443,26 @@ const DETECTION_INTERVAL_MS = 66; // ~15fps instead of 60fps
         victoryStartTime = null;
         victoryIndicator.style.display = 'none';
       }
- 
+//       if (isVictorySign(landmarks) && !isCapturing && !countdownActive) &&
+//     performance.now() - lastCaptureTime > CAPTURE_COOLDOWN_MS) {
+
+//   if (victoryStartTime === null) victoryStartTime = now;
+//   const held     = now - victoryStartTime;
+//   const progress = Math.min(held / VICTORY_HOLD_MS, 1);
+//   victoryIndicator.style.display = 'block';
+//   victoryIndicator.style.opacity = String(0.4 + progress * 0.6);
+//   victoryIndicator.textContent   = '✌️ Hold...';
+
+//   if (held >= VICTORY_HOLD_MS) {
+//     victoryStartTime  = null;
+//     lastCaptureTime   = performance.now(); // ← set cooldown timestamp
+//     victoryIndicator.style.display = 'none';
+//     startCountdownCapture();
+//   }
+// } else if (!countdownActive) {
+//   victoryStartTime = null;
+//   victoryIndicator.style.display = 'none';
+// }
     } else {
       handCursor.style.display       = 'none';
       // debugOverlay.textContent       = '🤚 No hand detected';
