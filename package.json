@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.3",
-    "@snap/camera-kit": "^1.16.0",
+    "@snap/camera-kit": "^1.18.0",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "qrcode": "^1.5.3"
