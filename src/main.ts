@@ -36,7 +36,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
   
   const lens = await cameraKit.lensRepository.loadLens(
-    'ee28d990-4fc1-401b-a7b6-2b773b9884b8',
+    '73e8185e-685b-48ad-8fbb-0ce50eead2a8',
     '7e39b6a3-2fab-4ad0-80d7-be024c517e7d'
   );
   await session.applyLens(lens);
